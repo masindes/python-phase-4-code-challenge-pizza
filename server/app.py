@@ -20,6 +20,11 @@ migrate = Migrate(app, db)
 db.init_app(app)
 api = Api(app)
 
+# Ensure database tables are created (for SQLite)
+@app.before_first_request
+def create_tables():
+    db.create_all()
+
 # Marshmallow schemas for validation
 class RestaurantPizzaSchema(Schema):
     price = fields.Float(required=True, validate=lambda p: 1 <= p <= 30)
@@ -61,6 +66,13 @@ class RestaurantPizzaList(Resource):
         schema = RestaurantPizzaSchema()
         try:
             data = schema.load(request.get_json())
+            
+            # Ensure the associated restaurant and pizza exist
+            restaurant = Restaurant.query.get(data["restaurant_id"])
+            pizza = Pizza.query.get(data["pizza_id"])
+            if not restaurant or not pizza:
+                return {"errors": "Restaurant or Pizza does not exist"}, 404
+            
             new_restaurant_pizza = RestaurantPizza(
                 price=data["price"],
                 pizza_id=data["pizza_id"],
@@ -73,7 +85,7 @@ class RestaurantPizzaList(Resource):
             return {"errors": err.messages}, 400
         except Exception as e:
             db.session.rollback()
-            return {"errors": ["An unexpected error occurred"]}, 500
+            return {"errors": "An unexpected error occurred"}, 500
 
 # Register API resources
 api.add_resource(RestaurantList, '/restaurants')
