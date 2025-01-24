@@ -44,6 +44,7 @@ class Pizza(db.Model, SerializerMixin):
     restaurants = association_proxy('restaurant_pizzas', 'restaurant')
 
     # add serialization rules
+    serialize_rules = ('-restaurant_pizzas.pizza', '-restaurant_pizzas.restaurant.restaurant_pizzas')
 
     def __repr__(self):
         return f"<Pizza {self.name}, {self.ingredients}>"
@@ -56,8 +57,13 @@ class RestaurantPizza(db.Model, SerializerMixin):
     price = db.Column(db.Integer, nullable=False)
 
     # add relationships
+    restaurant_id = db.Column(db.Integer, db.ForeignKey('restaurants.id'), nullable=False)
+    pizza_id = db.Column(db.Integer, db.ForeignKey('pizzas.id'), nullable=False)
+
 
     # add serialization rules
+    serialize_rules = ('-restaurant.restaurant_pizzas', '-pizza.restaurant_pizzas')
+
 
     # add validation
 
