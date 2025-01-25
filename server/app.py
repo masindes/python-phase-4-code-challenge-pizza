@@ -27,7 +27,7 @@ def create_tables():
 
 # Marshmallow schemas for validation
 class RestaurantPizzaSchema(Schema):
-    price = fields.Float(required=True, validate=lambda p: 1 <= p <= 30)
+    price = fields.Float(required=True, validate=lambda p: 1 <= p <= 30, error_messages={"validator_failed": "Price must be between 1 and 30."})
     pizza_id = fields.Int(required=True)
     restaurant_id = fields.Int(required=True)
 
@@ -43,13 +43,13 @@ class RestaurantList(Resource):
 
 class RestaurantDetails(Resource):
     def get(self, id):
-        restaurant = Restaurant.query.get(id)
+        restaurant = db.session.get(Restaurant, id)
         if restaurant:
             return restaurant.to_dict(), 200
         return {"error": "Restaurant not found"}, 404
     
     def delete(self, id):
-        restaurant = Restaurant.query.get(id)
+        restaurant = db.session.get(Restaurant, id)
         if restaurant:
             db.session.delete(restaurant)
             db.session.commit()
@@ -68,10 +68,12 @@ class RestaurantPizzaList(Resource):
             data = schema.load(request.get_json())
             
             # Ensure the associated restaurant and pizza exist
-            restaurant = Restaurant.query.get(data["restaurant_id"])
-            pizza = Pizza.query.get(data["pizza_id"])
-            if not restaurant or not pizza:
-                return {"errors": "Restaurant or Pizza does not exist"}, 404
+            restaurant = db.session.get(Restaurant, data["restaurant_id"])
+            pizza = db.session.get(Pizza, data["pizza_id"])
+            if not restaurant:
+                return {"errors": ["Restaurant does not exist"]}, 404
+            if not pizza:
+                return {"errors": ["Pizza does not exist"]}, 404
             
             new_restaurant_pizza = RestaurantPizza(
                 price=data["price"],
@@ -82,7 +84,7 @@ class RestaurantPizzaList(Resource):
             db.session.commit()
             return new_restaurant_pizza.to_dict(), 201
         except ValidationError as err:
-            return {"errors": err.messages}, 400
+            return {"errors": ["validation errors"]}, 400
         except Exception as e:
             db.session.rollback()
             return {"errors": "An unexpected error occurred"}, 500
